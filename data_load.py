@@ -30,7 +30,7 @@ def get_data():
     game_winner = [0]*100
     game_loser = [0]*100     
     
-    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_Junkrat/ReplayCharacters.csv' ) as csvfile:
+    with open( 'ReplayCharacters.csv' ) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         next(reader)
         idx = 1
@@ -60,17 +60,18 @@ def get_data():
                 assert sum(game_loser) == 5, ('not 5 losers')
                 game_loser_arr = np.array( game_loser )
                 
-                #For each game we double the training set by mirroring the matchup and results
-#                game_matchupA = []
-#                game_matchupA.append(game_winner_arr)
-#                game_matchupA.append(game_loser_arr)
-#                games_result.append([1,0])
-#                
-#                game_matchupB = []
-#                game_matchupB.append(game_loser_arr)
-#                game_matchupB.append(game_winner_arr)
-#                games_result.append([0,1])
+#                For each game we double the training set by mirroring the matchup and results
+                game_matchupA = []
+                game_matchupA.append(game_winner_arr)
+                game_matchupA.append(game_loser_arr)
+                games_result.append([1,0])
                 
+                game_matchupB = []
+                game_matchupB.append(game_loser_arr)
+                game_matchupB.append(game_winner_arr)
+                games_result.append([0,1])
+                
+                #We also force symmetry in the network by training on identical team compositions (50% winrate)
                 game_matchupC = []
                 game_matchupC.append(game_loser_arr)
                 game_matchupC.append(game_loser_arr)
@@ -82,8 +83,8 @@ def get_data():
                 games_result.append([0.5,0.5])
                     
                     
-#                games_matchup.append( game_matchupA )
-#                games_matchup.append( game_matchupB )
+                games_matchup.append( game_matchupA )
+                games_matchup.append( game_matchupB )
                 games_matchup.append( game_matchupC )
                 games_matchup.append( game_matchupD )
 
@@ -128,7 +129,7 @@ def get_data():
 #                break
     
     #Load the maps associated with the the matchups
-    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_Junkrat/Replays.csv' ) as mapsfile:
+    with open( 'Replays.csv' ) as mapsfile:
         mapsreader = csv.reader(mapsfile, delimiter=',')
         next(mapsreader)
         idx = 0
@@ -207,8 +208,8 @@ def get_data():
                     map_copy.append(actual_map1)
                     maps.append( map_copy )
                     maps.append( map_copy )
-#                    maps.append( map_copy )
-#                    maps.append( map_copy )
+                    maps.append( map_copy )
+                    maps.append( map_copy )
                 idx += 1
                 if len(games_result) == len(maps):
                     break

@@ -79,6 +79,7 @@ class Heroes(Enum):
     GARROSH = 69
     KELTHUZAD = 70
     ANA = 71
+    JUNKRAT = 72
     
 class Maps(Enum):
     BATTLEFIELD = 0 

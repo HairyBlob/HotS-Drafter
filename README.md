@@ -8,7 +8,7 @@ This project uses tensorflow-gpu to train the neural network, and the library sc
 
 Use
 
-The projet_tensorflow file is used to train a model on the HotsLogs Data. Once you have a model up and running, you can use projet_restore to use it. Some example uses are: estimating winrate for a specific match, using MCTS to give the top picks in a given situation, or visualizing the network weights.
+The projet_tensorflow file is used to train a model on the HotsLogs data, you can download the last 30 days of data here: https://www.hotslogs.com/Info/API . Once you have a model up and running, you can use projet_restore to use it. Performance should reach about 61% accuracy on the testing set. Some example uses are: estimating winrate for a specific match, using MCTS to give the top picks in a given situation, or visualizing the network weights.
 
 Authors
 

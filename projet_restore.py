@@ -118,28 +118,32 @@ with tf.Session() as sess:
     
     w = sess.run(tf.abs(weights['heroes_w']))
     tf.get_default_graph().finalize()
-    #np.savetxt("heroes.csv", np.array(w), delimiter=";") 
+    #Evaluation function to pass to the MCTS. Has to be defined outside of DraftBoard to prevent graph modification that can slow execution
     def evalFunc(games, mapss):
         result = sess.run(pred, feed_dict={x: games,
                                   m: mapss,
                                   keep_prob: 1.})
         return result
     
+    #add picked heroes
     team1 = [0]*100
-    team1[Heroes.AURIEL.value] = 1
-    team1[Heroes.SONYA.value] = 1
-    team1[Heroes.LEORIC.value] = 1
-    team1[Heroes.SYLVANAS.value] = 1
-    team1[Heroes.STUKOV.value] = 1
+#    team1[Heroes.AURIEL.value] = 1
+#    team1[Heroes.SONYA.value] = 1
+#    team1[Heroes.LEORIC.value] = 1
+#    team1[Heroes.SYLVANAS.value] = 1
+#    team1[Heroes.STUKOV.value] = 1
     team2 = [0]*100
-    team2[Heroes.RAGNAROS.value] = 1
-    team2[Heroes.MALFURION.value] = 1
-    team2[Heroes.KELTHUZAD.value] = 1
-    team2[Heroes.DEHAKA.value] = 1
-    team2[Heroes.SAMURO.value] = 1
+#    team2[Heroes.RAGNAROS.value] = 1
+#    team2[Heroes.MALFURION.value] = 1
+#    team2[Heroes.KELTHUZAD.value] = 1
+#    team2[Heroes.DEHAKA.value] = 1
+#    team2[Heroes.SAMURO.value] = 1
     pool = [1]*72
-    pool[43] = 0
-    pool[44] = 0
+    #Need to ban CHOGALL because he doesn't behave the same way in draft as other heroes.
+    #Still needs to be implemented
+    pool[Heroes.CHO.value] = 0
+    pool[Heroes.GALL.value] = 0
+    #Add picked or banned heroes here
     pool[Heroes.AURIEL.value] = 0
     pool[Heroes.RAGNAROS.value] = 0
     pool[Heroes.MALFURION.value] = 0
@@ -155,6 +159,7 @@ with tf.Session() as sess:
 #    pool[Heroes.SAMURO.value] = 0
     mymap = [0]*20
     mymap[10] = 1
+    #Inputs are: team1, team2, unpickable heroes, map, pick phase (1-15), team to pick
     boardState = draftBoard.DraftState(team1, team2, pool, mymap, 14, 2, evalFunc)
     algo = MCTS(tree_policy=UCB1(c=1.41), 
         default_policy=random_terminal_roll_out,
@@ -167,14 +172,14 @@ with tf.Session() as sess:
     #print( Heroes(draftBoard.random_search(boardState, 40000)).name )
     
     #TO MAP THE HEROES CLUSTERING
-    w = w[:-28]
-    linkage = scipy.cluster.hierarchy.linkage(w, method='ward')
-    hero_label = []
-    for a in range(0,72):
-        hero_label.append(Heroes(a).name)
-
-    plt.title('RMSD Average linkage hierarchical clustering')
-    _ = scipy.cluster.hierarchy.dendrogram(linkage, labels = hero_label, count_sort='descendent', leaf_font_size = 12)
+#    w = w[:-28]
+#    linkage = scipy.cluster.hierarchy.linkage(w, method='ward')
+#    hero_label = []
+#    for a in range(0,72):
+#        hero_label.append(Heroes(a).name)
+#
+#    plt.title('RMSD Average linkage hierarchical clustering')
+#    _ = scipy.cluster.hierarchy.dendrogram(linkage, labels = hero_label, count_sort='descendent', leaf_font_size = 12)
 
     #TO PREDICT TO RESULT OF A GAME
     #print( weights['heroes_w'] ) 

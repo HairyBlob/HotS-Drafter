@@ -42,15 +42,16 @@ testSet = dataset.DataSet( test_x, test_maps, test_y )
 print('Dataset created')
 
 # tf Graph input
+# Created 20 maps and 100 heroes to avoid having to change the model when a new map or hero is introduced
 x = tf.placeholder(tf.float32, [None, 2, 100])
 m = tf.placeholder(tf.float32, [None, 2, 20])
 y = tf.placeholder(tf.float32, [None, n_classes])
 keep_prob = tf.placeholder(tf.float32) #dropout (keep probability)
 
 # Create model
-# Heroes from both teams share the same set of weights for the first layer.
+# Heroes from both teams share the same set of weights for the first layers.
 # Maps are added as a secondary input that is added to the first layer
-# 4 layers, ReLu activation
+# Siamese architecture: feature extraction to characterize the teams on the 4 first layers, followed by classification
 def conv_net_siamese(x, maps, weights, biases, dropout):
     with tf.device('/gpu:0'):
         teams = tf.reshape(x, [-1, weights['heroes_w'].get_shape().as_list()[0]])

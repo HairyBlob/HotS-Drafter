@@ -26,10 +26,12 @@ class DraftState:
             """
             action = deepcopy(self)
             
+            #Ban phase 1
             if action.phase == 1:
                 action.heroes[move] = 0
             if action.phase == 2:
                 action.heroes[move] = 0
+            #Pick phase 1
             if action.phase == 3:
                 action.team1[move] = 1
                 action.heroes[move] = 0
@@ -45,10 +47,12 @@ class DraftState:
             if action.phase == 7:
                 action.team1[move] = 1
                 action.heroes[move] = 0
+            #Ban phase 2
             if action.phase == 8:
                 action.heroes[move] = 0
             if action.phase == 9:
                 action.heroes[move] = 0
+            #Pick phase 2
             if action.phase == 10:
                 action.team2[move] = 1
                 action.heroes[move] = 0
@@ -128,8 +132,8 @@ class DraftState:
             elif self.player == 2:
                 return result[0,1]
             
-
-def random_search(boardState, itNb):
+#First order Monte-Carlo search to leverage the special properties of the game (order of picks doesn't matter)
+def MC_search(boardState, itNb):
     heroes = [0]*100
     visits = [0]*100
     for i in range(itNb):
