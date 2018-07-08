@@ -1,0 +1,8 @@
+/*******************************************************
+ * Copyright (C) 2018-2021 Daniel Gourdeau goseki01@gmail.com
+ * 
+ * This file is part of the model generation module of the Heroes Drafter for HotsLogs.
+ * 
+ * Heroes Drafter can not be copied and/or distributed without the express
+ * permission of Daniel Gourdeau
+ *******************************************************/
