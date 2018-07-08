@@ -80,6 +80,12 @@ class Heroes(Enum):
     KELTHUZAD = 70
     ANA = 71
     JUNKRAT = 72
+    ALEXSTRASZA = 73
+    HANZO = 74
+    BLAZE = 75
+    MAIEV = 76
+    FENIX = 77
+    DECKARD = 78
     
 class Maps(Enum):
     BATTLEFIELD = 0 
@@ -116,7 +122,7 @@ def create_game( hero1, hero2, hero3, hero4, hero5, hero6, hero7, hero8, hero9, 
     matchup.append(team1)
     matchup.append(team2)
     match.append(matchup)
-    
+
     mapHack = []
     maps = [0]*20
     maps[MAP] = 1
@@ -125,3 +131,11 @@ def create_game( hero1, hero2, hero3, hero4, hero5, hero6, hero7, hero8, hero9, 
     mapHack.append(myMap)
     
     return match, mapHack
+
+def print_team(team):
+    idx = 0
+    print( "======" )
+    for hero in team:
+        if hero == 1:
+            print(Heroes(idx).name)
+        idx += 1
