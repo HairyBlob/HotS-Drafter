@@ -86,6 +86,7 @@ class Heroes(Enum):
     MAIEV = 76
     FENIX = 77
     DECKARD = 78
+    YREL = 79
     
 class Maps(Enum):
     BATTLEFIELD = 0 
@@ -102,6 +103,7 @@ class Maps(Enum):
     WARHEAD = 11
     HANAMURA = 12
     VOLSKAYA = 13
+    ALTERAC = 14
     
 def create_game( hero1, hero2, hero3, hero4, hero5, hero6, hero7, hero8, hero9, hero10, MAP):
     match = []

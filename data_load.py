@@ -7,6 +7,27 @@ Created on Tue Oct 17 15:25:43 2017
 import numpy as np
 import csv
 import random
+import tensorflow as tf
+
+class ImportDiscGraph():
+    """  Importing and running isolated TF graph """
+    def __init__(self, loc):
+        # Create local graph and use it in the session
+        self.graph = tf.Graph()
+        self.sess = tf.Session(graph=self.graph)
+        with self.graph.as_default():
+            # Import saved model from location 'loc' into local graph
+            saver = tf.train.import_meta_graph(loc + '.meta',
+                                               clear_devices=True)
+            saver.restore(self.sess, loc)
+            # There are TWO options how to get activation operation:
+              # FROM SAVED COLLECTION:            
+            self.activation = self.graph.get_operation_by_name('y').outputs[0]
+
+    def run(self, data):
+        """ Running the activation operation previously imported """
+        # The 'x' corresponds to name of input placeholder
+        return self.sess.run(self.activation, feed_dict={"x:0": data, "keep_prob:0": 1.0})
 
 #Load the HotsLogs data.
 def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averageMMR = 2500):
@@ -32,107 +53,128 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
     game_winner = [0]*100
     game_loser = [0]*100     
     
-    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_DECKARD/ReplayCharacters.csv' ) as csvfile:
+    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/ReplayCharacters.csv' ) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         next(reader)
         idx = 1
         mmr = 0
-        for row in reader:
-            #if we want to discriminate by mmr
-            stringmmr = row[5]
-            for i in stringmmr.split():
-                try:
-                    mmr += int(i)
-                except ValueError:
-                    pass
-                
-            if int(row[4]) == 1:
-                game_winner[int(row[2]) - 1] = 1
-                
-            elif int(row[4]) == 0:
-                game_loser[int(row[2]) - 1] = 1
-            
-            #Testing set
-            if idx % 10 == 0 and idx % 100 == 0 and (not filterByMMR or mmr > averageMMR*10):
-                test_id.append( idx/10 -1 )
-                
-                assert sum(game_winner) == 5, ('not 5 winners')
-                game_winner_arr = np.array( game_winner )
-                assert sum(game_loser) == 5, ('not 5 losers')
-                game_loser_arr = np.array( game_loser )
-                
-                game_matchupA = []
-                game_matchupA.append(game_winner_arr)
-                game_matchupA.append(game_loser_arr)
-                test_games_result.append([1,0])
-                
-                game_matchupB = []
-                game_matchupB.append(game_loser_arr)
-                game_matchupB.append(game_winner_arr)
-                test_games_result.append([0,1])
+        init = tf.global_variables_initializer()
+        with tf.Session() as sess:
+            sess.run(init)
+#            model = ImportDiscGraph('C:\\Users\\gosek\\.spyder-py3\\discriminator')
+            for row in reader:
+                #if we want to discriminate by mmr
+                stringmmr = row[5]
+                for i in stringmmr.split():
+                    try:
+                        mmr += int(i)
+                    except ValueError:
+                        pass
                     
-                test_games_matchup.append( game_matchupA )
-                test_games_matchup.append( game_matchupB )
-
-                game_winner = [0]*100
-                game_loser = [0]*100
-                mmr = 0
-                
-                #Training set
-            elif idx % 10 == 0 and (not filterByMMR or mmr > averageMMR*10):
-                train_id.append( idx/10 -1 )
-                
-                #games must have 5 winners and 5 losers
-                assert sum(game_winner) == 5, ('not 5 winners')
-                game_winner_arr = np.array( game_winner )
-                assert sum(game_loser) == 5, ('not 5 losers')
-                game_loser_arr = np.array( game_loser )
-                
-#                For each game we double the training set by mirroring the matchup and results
-                game_matchupA = []
-                game_matchupA.append(game_winner_arr)
-                game_matchupA.append(game_loser_arr)
-                games_result.append([1,0])
-                
-                game_matchupB = []
-                game_matchupB.append(game_loser_arr)
-                game_matchupB.append(game_winner_arr)
-                games_result.append([0,1])
+                if int(row[4]) == 1:
+                    game_winner[int(row[2]) - 1] = 1
                     
-                games_matchup.append( game_matchupA )
-                games_matchup.append( game_matchupB )
+                elif int(row[4]) == 0:
+                    game_loser[int(row[2]) - 1] = 1
                 
-                #We also force symmetry in the network by training on identical team compositions (50% winrate)
-                if dataAugment:
-                    game_matchupC = []
-                    game_matchupC.append(game_loser_arr)
-                    game_matchupC.append(game_loser_arr)
-                    games_result.append([0.5,0.5])
+                #Testing set
+                if idx % 10 == 0 and idx % 100 == 0 and (not filterByMMR or mmr > averageMMR*10):
                     
-                    game_matchupD = []
-                    game_matchupD.append(game_winner_arr)
-                    game_matchupD.append(game_winner_arr)
-                    games_result.append([0.5,0.5])
-                    games_matchup.append( game_matchupC )
-                    games_matchup.append( game_matchupD )
-
-                game_winner = [0]*100
-                game_loser = [0]*100
-                mmr = 0
-            
-            
-            #if we screen by mmr, reset the game arrays
-            elif idx % 10 == 0:
-                game_winner = [0]*100
-                game_loser = [0]*100
-                mmr = 0  
+                    assert sum(game_winner) == 5, ('not 5 winners')
+                    game_winner_arr = np.array( game_winner )
+                    assert sum(game_loser) == 5, ('not 5 losers')
+                    game_loser_arr = np.array( game_loser )
+                    
+#                    if (model.run(np.array(game_winner).reshape(-1,100))[0,0] > 0.5 and model.run(np.array(game_loser).reshape(-1,100))[0,0] > 0.5):
+                    test_id.append( idx/10 -1 )
+                    
+                    game_matchupA = []
+                    game_matchupA.append(game_winner_arr)
+                    game_matchupA.append(game_loser_arr)
+                    test_games_result.append([1,0])
+                    
+                    game_matchupB = []
+                    game_matchupB.append(game_loser_arr)
+                    game_matchupB.append(game_winner_arr)
+                    test_games_result.append([0,1])
+                        
+                    test_games_matchup.append( game_matchupA )
+                    test_games_matchup.append( game_matchupB )
+    
+                    game_winner = [0]*100
+                    game_loser = [0]*100
+                    mmr = 0
+                    
+                    #Training set
+                elif idx % 10 == 0 and (not filterByMMR or mmr > averageMMR*10):
+                    train_id.append( idx/10 -1 )
+                    
+                    #games must have 5 winners and 5 losers
+                    assert sum(game_winner) == 5, ('not 5 winners')
+                    game_winner_arr = np.array( game_winner )
+                    assert sum(game_loser) == 5, ('not 5 losers')
+                    game_loser_arr = np.array( game_loser )
+                    
+    #                For each game we double the training set by mirroring the matchup and results
+#                    if (model.run(np.array(game_winner).reshape(-1,100))[0,0] < 0.5 and model.run(np.array(game_loser).reshape(-1,100))[0,0] > 0.5):
+#                        game_matchupA = []
+#                        game_matchupA.append(game_loser_arr)
+#                        game_matchupA.append(game_winner_arr)
+#                        games_result.append([1,0])
+#                        
+#                        game_matchupB = []
+#                        game_matchupB.append(game_winner_arr)
+#                        game_matchupB.append(game_loser_arr)
+#                        games_result.append([0,1])
+#                            
+#                        games_matchup.append( game_matchupA )
+#                        games_matchup.append( game_matchupB )
+                    
+#                    else:
+                    game_matchupA = []
+                    game_matchupA.append(game_winner_arr)
+                    game_matchupA.append(game_loser_arr)
+                    games_result.append([1,0])
+                    
+                    game_matchupB = []
+                    game_matchupB.append(game_loser_arr)
+                    game_matchupB.append(game_winner_arr)
+                    games_result.append([0,1])
+                        
+                    games_matchup.append( game_matchupA )
+                    games_matchup.append( game_matchupB )
+                            
+                    #We also force symmetry in the network by training on identical team compositions (50% winrate)
+                    if dataAugment:
+                        game_matchupC = []
+                        game_matchupC.append(game_loser_arr)
+                        game_matchupC.append(game_loser_arr)
+                        games_result.append([0.5,0.5])
+                        
+                        game_matchupD = []
+                        game_matchupD.append(game_winner_arr)
+                        game_matchupD.append(game_winner_arr)
+                        games_result.append([0.5,0.5])
+                        games_matchup.append( game_matchupC )
+                        games_matchup.append( game_matchupD )
+    
+                    game_winner = [0]*100
+                    game_loser = [0]*100
+                    mmr = 0
                 
-            idx += 1
-#            if idx >2000000:
-#                break
+                
+                #if we screen by mmr, reset the game arrays
+                elif idx % 10 == 0:
+                    game_winner = [0]*100
+                    game_loser = [0]*100
+                    mmr = 0  
+                    
+                idx += 1
+    #            if idx >2000000:
+    #                break
     
     #Load the maps associated with the the matchups
-    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_DECKARD/Replays.csv' ) as mapsfile:
+    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/Replays.csv' ) as mapsfile:
         mapsreader = csv.reader(mapsfile, delimiter=',')
         next(mapsreader)
         train_idx = 0
@@ -198,6 +240,9 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
                 elif int( row[2] ) == 1019:
                     actual_map[13] = 1
                     actual_map1[13] = 1
+                elif int( row[2] ) == 1022:
+                    actual_map[14] = 1
+                    actual_map1[14] = 1
                 #Testing set
                 #Maps are added twice to match the number of teams ( 2 team per game )
                 if idx == test_id[test_idx]:
@@ -274,7 +319,7 @@ def get_data_discriminator( filterByMMR = False, averageMMR = 2500):
     gameID = 0
         
     #Load the maps associated with the the matchups
-    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_DECKARD/Replays.csv' ) as mapsfile:
+    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/Replays.csv' ) as mapsfile:
         mapsreader = csv.reader(mapsfile, delimiter=',')
         next(mapsreader)
         for row in mapsreader:
@@ -283,7 +328,7 @@ def get_data_discriminator( filterByMMR = False, averageMMR = 2500):
                 print(gameID)
                 break
     
-    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_DECKARD/ReplayCharacters.csv' ) as csvfile:
+    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/ReplayCharacters.csv' ) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         next(reader)
         idx = 1
@@ -347,13 +392,13 @@ def get_data_discriminator( filterByMMR = False, averageMMR = 2500):
                 
                 games_result.append([1,0])
                 games_result.append([1,0])
-#                games_result.append([0,1])
-#                games_result.append([0,1])
+                games_result.append([0,1])
+                games_result.append([0,1])
                     
                 games_matchup.append( game_winner )
                 games_matchup.append( game_loser )
-#                games_matchup.append( false_game_1 )
-#                games_matchup.append( false_game_2 )
+                games_matchup.append( false_game_1 )
+                games_matchup.append( false_game_2 )
                 
                 game_winner = [0]*100
                 game_loser = [0]*100

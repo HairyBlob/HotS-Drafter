@@ -2,13 +2,15 @@ from __future__ import print_function
 import tensorflow as tf
 import dataset
 import data_load
-import matplotlib.pyplot as plt
-import numpy as np
+from discriminator import train_discriminator
+from graph_freezer import freezing_graph
+
+result = train_discriminator()
 
 # Parameters
-base_learning_rate = 0.00005
+base_learning_rate = 0.0001
 training_iters = 50000000
-batch_size = 1000
+batch_size = 10000
 display_step = 100
 dropout = 0.7
 
@@ -17,7 +19,7 @@ n_input = 100 * 2 # Number of possible heroes * number of teams
 n_classes = 2 #Team 1 or team 2 win
 
 #Load HotsLogs data
-train_matchups, train_results, train_maps, test_matchups, test_results, test_maps = data_load.get_data_winrate_estimator(mmrFilterOff = False, averageMMR = 2500)
+train_matchups, train_results, train_maps, test_matchups, test_results, test_maps = data_load.get_data_winrate_estimator(dataAugment = True, filterByMMR = True, averageMMR = 2000)
 
 #Verify data shape
 print( train_matchups.shape )
@@ -48,7 +50,7 @@ print('Dataset created')
 x = tf.placeholder(tf.float32, [None, 2, 100], name = "x")
 m = tf.placeholder(tf.float32, [None, 2, 20], name = "m")
 y = tf.placeholder(tf.float32, [None, n_classes])
-keep_prob = tf.placeholder(tf.float32)
+keep_prob = tf.placeholder(tf.float32, name = "keep_prob")
 
 # Create model
 # Heroes from both teams share the same set of weights for the first layers.
@@ -91,37 +93,7 @@ def conv_net_siamese(x, maps, weights, biases, dropout):
         fc4 = tf.nn.relu(fc4)
         fc4 = tf.nn.dropout(fc4, dropout)
         
-        fc5 = fc4
-        fc5 = tf.add(tf.matmul(fc5, weights['w5']), biases['b5'])
-        fc5 = tf.nn.relu(fc5)
-        fc5 = tf.nn.dropout(fc5, dropout)
-    
-        fc6 = fc5
-        fc6 = tf.add(tf.matmul(fc6, weights['w6']), biases['b6'])
-        fc6 = tf.nn.relu(fc6)
-        fc6 = tf.nn.dropout(fc6, dropout)
-    
-        fc7 = fc6
-        fc7 = tf.add(tf.matmul(fc7, weights['w7']), biases['b7'])
-        fc7 = tf.nn.relu(fc7)
-        fc7 = tf.nn.dropout(fc7, dropout)
-        
-        fc8 = fc7
-        fc8 = tf.add(tf.matmul(fc8, weights['w8']), biases['b8'])
-        fc8 = tf.nn.relu(fc8)
-        fc8 = tf.nn.dropout(fc8, dropout)
-    
-        fc9 = fc8
-        fc9 = tf.add(tf.matmul(fc9, weights['w9']), biases['b9'])
-        fc9 = tf.nn.relu(fc9)
-        fc9 = tf.nn.dropout(fc9, dropout)
-    
-        fc10 = fc9
-        fc10 = tf.add(tf.matmul(fc10, weights['w10']), biases['b10'])
-        fc10 = tf.nn.relu(fc10)
-        fc10 = tf.nn.dropout(fc10, dropout)
-        
-        out = tf.add(tf.matmul(fc10, weights['out']), biases['out'])
+        out = tf.add(tf.matmul(fc4, weights['out']), biases['out'])
     return out
 
 # Store layers weight & bias
@@ -134,13 +106,7 @@ weights = {
     'w2': tf.get_variable( 'w2', shape=[256, 256], initializer=tf.contrib.layers.xavier_initializer()),
     'w3': tf.get_variable( 'w3', shape=[256, 256], initializer=tf.contrib.layers.xavier_initializer()),
     'w4': tf.get_variable( 'w4', shape=[256, 256], initializer=tf.contrib.layers.xavier_initializer()),
-    'w5': tf.get_variable( 'w5', shape=[256, 256], initializer=tf.contrib.layers.xavier_initializer()),
-    'w6': tf.get_variable( 'w6', shape=[256, 256], initializer=tf.contrib.layers.xavier_initializer()),
-    'w7': tf.get_variable( 'w7', shape=[256, 128], initializer=tf.contrib.layers.xavier_initializer()),
-    'w8': tf.get_variable( 'w8', shape=[128, 128], initializer=tf.contrib.layers.xavier_initializer()),
-    'w9': tf.get_variable( 'w9', shape=[128, 64], initializer=tf.contrib.layers.xavier_initializer()),
-    'w10': tf.get_variable( 'w10', shape=[64, 64], initializer=tf.contrib.layers.xavier_initializer()),
-    'out': tf.get_variable( 'wout', shape=[64, n_classes], initializer=tf.contrib.layers.xavier_initializer()),
+    'out': tf.get_variable( 'wout', shape=[256, n_classes], initializer=tf.contrib.layers.xavier_initializer()),
 }
 
 biases = {
@@ -151,12 +117,6 @@ biases = {
     'b2': tf.get_variable( 'b2', shape=[256], initializer=tf.zeros_initializer()),
     'b3': tf.get_variable( 'b3', shape=[256], initializer=tf.zeros_initializer()),
     'b4': tf.get_variable( 'b4', shape=[256], initializer=tf.zeros_initializer()),
-    'b5': tf.get_variable( 'b5', shape=[256], initializer=tf.zeros_initializer()),
-    'b6': tf.get_variable( 'b6', shape=[256], initializer=tf.zeros_initializer()),
-    'b7': tf.get_variable( 'b7', shape=[128], initializer=tf.zeros_initializer()),
-    'b8': tf.get_variable( 'b8', shape=[128], initializer=tf.zeros_initializer()),
-    'b9': tf.get_variable( 'b9', shape=[64], initializer=tf.zeros_initializer()),
-    'b10': tf.get_variable( 'b10', shape=[64], initializer=tf.zeros_initializer()),
     'out': tf.get_variable( 'bout', shape=[n_classes], initializer=tf.zeros_initializer()),
 }
 
@@ -164,22 +124,10 @@ biases = {
 pred = tf.nn.softmax(conv_net_siamese(x, m, weights, biases, keep_prob), name="y")
 
 # Define loss and optimizer
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=conv_net_siamese(x, m, weights, biases, keep_prob), labels=y)
-                                                              + 0.001*tf.nn.l2_loss(weights['heroes_w'])
-                                                              + 0.001*tf.nn.l2_loss(weights['heroes_w2'])
-                                                              + 0.001*tf.nn.l2_loss(weights['heroes_w3'])
-                                                              + 0.001*tf.nn.l2_loss(weights['heroes_w4'])
-                                                              + 0.001*tf.nn.l2_loss(weights['maps_w'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w2'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w3'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w4'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w5'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w6'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w7'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w8'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w9'])
-                                                              + 0.001*tf.nn.l2_loss(weights['w10'])
-                                                              + 0.001*tf.nn.l2_loss(weights['out']))
+#cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=conv_net_siamese(x, m, weights, biases, keep_prob), labels=(tf.add(tf.multiply(y,tf.subtract(one,beta)),tf.multiply(pred,beta)))))
+
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=conv_net_siamese(x, m, weights, biases, keep_prob), labels=y))
+
 optimizer = tf.train.AdamOptimizer(learning_rate=base_learning_rate).minimize(cost)
 
 # Evaluate model
@@ -198,15 +146,16 @@ with tf.Session(graph = tf.get_default_graph()) as sess:
     step = 1
     #If we want to resume training from a particular point
     saver = tf.train.Saver()
-    
-    saver.restore(sess,'C:\\Users\\Daniel\\.spyder-py3\\siamese_L2_deep')
+#    saver.restore(sess,'./estimator_model/siamese_smaller')
+
     # Keep training until reach max iterations
     while step * batch_size < training_iters:
         batch_x, batch_map, batch_y = trainSet.next_batch( batch_size )
-        test_x, test_map, test_y = testSet.next_batch( len(test_matchups) )
+        test_x, test_map, test_y = testSet.next_batch( 10000 )
         # Run optimization op (backprop)
+#        betaa = (step * batch_size) / (training_iters * 1.5)
         with tf.device('/gpu:0'):
-            sess.run(optimizer, feed_dict={x: batch_x, m:batch_map, y: batch_y, keep_prob: dropout})
+            sess.run(optimizer, feed_dict={x: batch_x, m:batch_map, y: batch_y, keep_prob: dropout })
         if step % display_step == 0:
             # Calculate batch loss and accuracy
             loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
@@ -225,103 +174,30 @@ with tf.Session(graph = tf.get_default_graph()) as sess:
                   "{:.6f}".format(test_loss) + ", Testing Accuracy= " + \
                   "{:.5f}".format(test_acc))
     
-    
         if step % (1000000 / batch_size) == 0:
-            #Now, save the graph
-            saver.save(sess, 'C:\\Users\\Daniel\\.spyder-py3\\siamese_L2_deep')
-            #w2 = sess.run(weights['w2'])
-            #print(w2)
-            
-            #w3 = sess.run(weights['w3'])
-            #print(w3)
-            
-            #w4 = sess.run(weights['w4'])aph
-            #print(w4)
-#            if test_acc > 0.65:
-#                break
+            saver.save(sess, './estimator_model/siamese_smaller')
+
         step += 1
     
-#    test_x, test_map, test_y = testSet.next_batch( batch_size )
+
+#    w = sess.run( tf.abs(weights['heroes_w']))
+#    w = w[:-20]
+#    linkage = scipy.cluster.hierarchy.linkage(w, method='ward')
+#    hero_label = []
+#    for a in range(0,80):
+#        hero_label.append(Heroes(a).name)
 #
-#    predictions = sess.run(pred, feed_dict={x: test_x,
-#                                                                m: test_map,
-#                                                                y: test_y})
+#    plt.title('RMSD Average linkage hierarchical clustering')
+#    _ = scipy.cluster.hierarchy.dendrogram(linkage, labels = hero_label, leaf_font_size = 12)
 #    
-#    team_1_score = []
-#    
-#    for game in predictions:
-#        team_1_score.append(game[0])
-#        team_1_score.append(game[1])
-#        
-#    plt.hist(team_1_score, bins = (50))
-#    plt.xlabel('Winrate distribution')
-#    plt.show()
-#    
-#    score = []
-#    counts = []
-#    
-#    for i in range(0,10):
-#        score.append(0)
-#        counts.append(0)
-#        
-#    stratified_acc = []
-#    a = 0
-#    for game in predictions:
-#        if game[0] >= 0.5:
-#            counts[int(np.ceil(game[0]*20) - 11)] += 1
-#        elif game[1] >= 0.5:
-#            counts[int(np.ceil(game[1]*20) - 11)] += 1
-#        if test_y[a][0] == 1 and game[0] >= 0.5:
-#            score[int(np.ceil(game[0]*20) - 11)] += 1
-#        elif test_y[a][1] == 1 and game[1] >= 0.5:
-#            score[int(np.ceil(game[1]*20) - 11)] += 1
-#        a += 1
-#            
-#    for i in range(0,10):
-#        stratified_acc.append(score[i]/counts[i])
-#        
-#    xrange = []
-#    for i in range(55,105,5):
-#        xrange.append(i-2.5)
-#        
-#    plt.plot(xrange, stratified_acc)
-#    plt.ylabel('Accuracy')
-#    plt.xlabel('Estimated winrate (%)')
-#    plt.xlim(50,100)
-#    plt.show()
-#    auc = tf.metrics.auc(
-#                        test_y,
-#                        predictions,
-#                        weights=None,
-#                        num_thresholds=100,
-#                        metrics_collections=None,
-#                        updates_collections=None,
-#                        curve='ROC',
-#                        name='lcl'
-#    )
-#    
-#    lcl_init = tf.local_variables_initializer()
-#    sess.run(lcl_init)
-#    print(sess.run(auc, feed_dict={x: test_x,
-#                                   m: test_map,
-#                                   y: test_y}))
-#    
-#    true_pos = sess.run( 'lcl/true_positives:0' )
-#    false_pos = sess.run( 'lcl/false_positives:0' )
-#    
-#    plt.plot(false_pos/10000, true_pos/10000)
-#    plt.plot(np.arange(0, 1.01, 0.01), np.arange(0, 1.01, 0.01))
-#    plt.ylabel('Sensibilité')
-#    plt.xlabel('1 - Spécificité')
-#    plt.show()
-    
     print("Optimization Finished!")
 
 
 
     #Now, save the graph
     
-    checkpoint_prefix = ("C:\\Users\\Daniel\\.spyder-py3\\graph\\saved_checkpoint")
+    checkpoint_prefix = ("./estimator_graph/estimator_checkpoint")
     saver.save(sess, checkpoint_prefix, global_step=0)
-    tf.train.write_graph(sess.graph_def, "C:\\Users\\Daniel\\.spyder-py3\\graph", "input_graph.pb")
+    tf.train.write_graph(sess.graph_def, "./estimator_graph", "estimator_graph.pb")
     
+    freezing_graph("estimator")
