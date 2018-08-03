@@ -4,9 +4,11 @@ import dataset
 import data_load
 from discriminator import train_discriminator
 from graph_freezer import freezing_graph
+import os
+
 
 result = train_discriminator()
-
+dirname = os.path.dirname(__file__)
 # Parameters
 base_learning_rate = 0.0001
 training_iters = 50000000
@@ -57,43 +59,43 @@ keep_prob = tf.placeholder(tf.float32, name = "keep_prob")
 # Maps are added as a secondary input that is added to the first layer
 # Siamese architecture: feature extraction to characterize the teams on the 4 first layers, followed by classification
 def conv_net_siamese(x, maps, weights, biases, dropout):
-    with tf.device('/gpu:0'):
-        teams = tf.reshape(x, [-1, weights['heroes_w'].get_shape().as_list()[0]])
-        teams = tf.matmul(teams, tf.abs(weights['heroes_w']))
-        maps = tf.reshape(maps, [-1, weights['maps_w'].get_shape().as_list()[0]])
-        teams = tf.multiply(teams, tf.matmul(maps, tf.abs(weights['maps_w'])))
-        fc1 = tf.add( teams, biases['b1'] )
-        fc1 = tf.nn.relu(fc1)
-        fc1 = tf.nn.dropout(fc1, dropout)
-        
-        fs2 = tf.add(tf.matmul(fc1, weights['heroes_w2']), biases['bw2'])
-        fs2 = tf.nn.relu(fs2)
-        fs2 = tf.nn.dropout(fs2, dropout)
-        
-        fs3 = tf.add(tf.matmul(fs2, weights['heroes_w3']), biases['bw3'])
-        fs3 = tf.nn.relu(fs3)
-        fs3 = tf.nn.dropout(fs3, dropout)
-        
-        fs4 = tf.add(tf.matmul(fs3, weights['heroes_w4']), biases['bw4'])
-        fs4 = tf.nn.relu(fs4)
-        fs4 = tf.nn.dropout(fs4, dropout)
+#    with tf.device('/gpu:0'):
+    teams = tf.reshape(x, [-1, weights['heroes_w'].get_shape().as_list()[0]])
+    teams = tf.matmul(teams, tf.abs(weights['heroes_w']))
+    maps = tf.reshape(maps, [-1, weights['maps_w'].get_shape().as_list()[0]])
+    teams = tf.multiply(teams, tf.matmul(maps, tf.abs(weights['maps_w'])))
+    fc1 = tf.add( teams, biases['b1'] )
+    fc1 = tf.nn.relu(fc1)
+    fc1 = tf.nn.dropout(fc1, dropout)
     
-        fc2 = tf.reshape(fs4, [-1, 256])
-        fc2 = tf.add(tf.matmul(fc2, weights['w2']), biases['b2'])
-        fc2 = tf.nn.relu(fc2)
-        fc2 = tf.nn.dropout(fc2, dropout)
+    fs2 = tf.add(tf.matmul(fc1, weights['heroes_w2']), biases['bw2'])
+    fs2 = tf.nn.relu(fs2)
+    fs2 = tf.nn.dropout(fs2, dropout)
     
-        fc3 = fc2
-        fc3 = tf.add(tf.matmul(fc3, weights['w3']), biases['b3'])
-        fc3 = tf.nn.relu(fc3)
-        fc3 = tf.nn.dropout(fc3, dropout)
+    fs3 = tf.add(tf.matmul(fs2, weights['heroes_w3']), biases['bw3'])
+    fs3 = tf.nn.relu(fs3)
+    fs3 = tf.nn.dropout(fs3, dropout)
     
-        fc4 = fc3
-        fc4 = tf.add(tf.matmul(fc4, weights['w4']), biases['b4'])
-        fc4 = tf.nn.relu(fc4)
-        fc4 = tf.nn.dropout(fc4, dropout)
-        
-        out = tf.add(tf.matmul(fc4, weights['out']), biases['out'])
+    fs4 = tf.add(tf.matmul(fs3, weights['heroes_w4']), biases['bw4'])
+    fs4 = tf.nn.relu(fs4)
+    fs4 = tf.nn.dropout(fs4, dropout)
+
+    fc2 = tf.reshape(fs4, [-1, 256])
+    fc2 = tf.add(tf.matmul(fc2, weights['w2']), biases['b2'])
+    fc2 = tf.nn.relu(fc2)
+    fc2 = tf.nn.dropout(fc2, dropout)
+
+    fc3 = fc2
+    fc3 = tf.add(tf.matmul(fc3, weights['w3']), biases['b3'])
+    fc3 = tf.nn.relu(fc3)
+    fc3 = tf.nn.dropout(fc3, dropout)
+
+    fc4 = fc3
+    fc4 = tf.add(tf.matmul(fc4, weights['w4']), biases['b4'])
+    fc4 = tf.nn.relu(fc4)
+    fc4 = tf.nn.dropout(fc4, dropout)
+    
+    out = tf.add(tf.matmul(fc4, weights['out']), biases['out'])
     return out
 
 # Store layers weight & bias
@@ -154,8 +156,8 @@ with tf.Session(graph = tf.get_default_graph()) as sess:
         test_x, test_map, test_y = testSet.next_batch( 10000 )
         # Run optimization op (backprop)
 #        betaa = (step * batch_size) / (training_iters * 1.5)
-        with tf.device('/gpu:0'):
-            sess.run(optimizer, feed_dict={x: batch_x, m:batch_map, y: batch_y, keep_prob: dropout })
+#        with tf.device('/gpu:0'):
+        sess.run(optimizer, feed_dict={x: batch_x, m:batch_map, y: batch_y, keep_prob: dropout })
         if step % display_step == 0:
             # Calculate batch loss and accuracy
             loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
@@ -175,7 +177,7 @@ with tf.Session(graph = tf.get_default_graph()) as sess:
                   "{:.5f}".format(test_acc))
     
         if step % (1000000 / batch_size) == 0:
-            saver.save(sess, './estimator_model/siamese_smaller')
+            saver.save(sess, os.path.join(dirname, 'estimator_model\\estimator_checkpoint'), global_step=0)
 
         step += 1
     
@@ -192,12 +194,9 @@ with tf.Session(graph = tf.get_default_graph()) as sess:
 #    
     print("Optimization Finished!")
 
-
-
     #Now, save the graph
     
-    checkpoint_prefix = ("./estimator_graph/estimator_checkpoint")
-    saver.save(sess, checkpoint_prefix, global_step=0)
-    tf.train.write_graph(sess.graph_def, "./estimator_graph", "estimator_graph.pb")
+    tf.train.write_graph(sess.graph_def, os.path.join(dirname, "estimator_graph"), "estimator_graph.pb")
+    sess.close()
     
-    freezing_graph("estimator")
+freezing_graph("estimator")

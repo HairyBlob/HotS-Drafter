@@ -53,7 +53,7 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
     game_winner = [0]*100
     game_loser = [0]*100     
     
-    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/ReplayCharacters.csv' ) as csvfile:
+    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_Maiev/ReplayCharacters.csv' ) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         next(reader)
         idx = 1
@@ -174,7 +174,7 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
     #                break
     
     #Load the maps associated with the the matchups
-    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/Replays.csv' ) as mapsfile:
+    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_Maiev/Replays.csv' ) as mapsfile:
         mapsreader = csv.reader(mapsfile, delimiter=',')
         next(mapsreader)
         train_idx = 0
@@ -319,7 +319,7 @@ def get_data_discriminator( filterByMMR = False, averageMMR = 2500):
     gameID = 0
         
     #Load the maps associated with the the matchups
-    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/Replays.csv' ) as mapsfile:
+    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_Maiev/Replays.csv' ) as mapsfile:
         mapsreader = csv.reader(mapsfile, delimiter=',')
         next(mapsreader)
         for row in mapsreader:
@@ -328,7 +328,7 @@ def get_data_discriminator( filterByMMR = False, averageMMR = 2500):
                 print(gameID)
                 break
     
-    with open( 'C:/Users/gosek/Downloads/HOTSLogs_Data_Export_Current_Yrel/ReplayCharacters.csv' ) as csvfile:
+    with open( 'C:/Users/Daniel/Favorites/Downloads/HOTSLogs_Data_Export_Current_Maiev/ReplayCharacters.csv' ) as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         next(reader)
         idx = 1

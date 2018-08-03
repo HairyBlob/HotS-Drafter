@@ -15,22 +15,23 @@ def freezing_graph(model):
     input_saver_def_path =""
     output_frozen_graph_name = ""
     output_optimized_graph_name = ""
+    output_path = ""
     if model == "estimator":
-        checkpoint_path = os.path.join(dirname, "estimator_graph/estimator_checkpoint-0.ckpt")
-        input_graph_path =  os.path.join(dirname, "estimator_graph/input_graph.pb")
-        input_saver_def_path =  os.path.join(dirname, "estimator_graph")
-        output_frozen_graph_name = "frozen_estimator.pb"
+        checkpoint_path = os.path.join(dirname, "estimator_graph\\estimator_checkpoint-0")
+        input_graph_path =  os.path.join(dirname, "estimator_graph\\input_graph.pb")
+        output_path = os.path.join(dirname, "estimator_graph")
+        output_frozen_graph_name = os.path.join(dirname, "estimator_graph\\frozen_estimator.pb")
         output_optimized_graph_name = "optimized_estimator.pb"
         
     elif model == "discriminator":
-        checkpoint_path = os.path.join(dirname, "discriminator_graph/discriminator_checkpoint-0.ckpt")
-        input_graph_path = os.path.join(dirname, "discriminator_graph/discriminator_graph.pb")
-        input_saver_def_path = os.path.join(dirname, "discriminator_graph")
-        output_frozen_graph_name = "frozen_discriminator.pb"
+        checkpoint_path = os.path.join(dirname, "discriminator_graph\\discriminator_checkpoint-0")
+        input_graph_path = os.path.join(dirname, "discriminator_graph\\discriminator_graph.pb")
+        output_path = os.path.join(dirname, "discriminator_graph")
+        output_frozen_graph_name = os.path.join(dirname, "discriminator_graph\\frozen_discriminator.pb")
         output_optimized_graph_name = "optimized_discriminator.pb"
         
     input_binary = False
-    output_node_names = "O"
+    output_node_names = "y"
     restore_op_name = "save/restore_all"
     filename_tensor_name = "save/Const:0"
     clear_devices = True
@@ -46,14 +47,14 @@ def freezing_graph(model):
     # Optimize for inference
     
     input_graph_def = tf.GraphDef()
-    with tf.gfile.Open(output_frozen_graph_name, "r") as f:
+    with tf.gfile.Open(output_frozen_graph_name, "rb") as f:
         data = f.read()
         input_graph_def.ParseFromString(data)
     
     output_graph_def = optimize_for_inference_lib.optimize_for_inference(
             input_graph_def,
-            ["I"], # an array of the input node(s)
-            ["O"], # an array of output nodes
+            ["x"], # an array of the input node(s)
+            ["y"], # an array of output nodes
             tf.float32.as_datatype_enum)
     
     
@@ -61,5 +62,5 @@ def freezing_graph(model):
     
     f = tf.gfile.FastGFile(output_optimized_graph_name, "w")
     f.write(output_graph_def.SerializeToString())
-
-# tf.train.write_graph(output_graph_def, './', output_optimized_graph_name)
+    
+    tf.train.write_graph(output_graph_def, output_path, output_optimized_graph_name)
