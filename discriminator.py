@@ -2,7 +2,6 @@ from __future__ import print_function
 import tensorflow as tf
 import dataset
 import data_load
-from graph_freezer import freezing_graph
 import os
 
 def train_discriminator():
@@ -155,6 +154,5 @@ def train_discriminator():
     
         tf.train.write_graph(sess.graph_def, os.path.join(dirname, 'discriminator_graph'), "discriminator_graph.pb")
         sess.close()
-    freezing_graph("discriminator")
     return 0
     
