@@ -3,6 +3,10 @@ import tensorflow as tf
 import dataset
 import data_load
 import os
+from scipy.cluster.hierarchy import dendrogram, linkage
+import matplotlib.pyplot as plt
+from HotSInfo import Heroes
+from HotSInfo import Maps
 
 def train_estimator():
     dirname = os.path.dirname(__file__)
@@ -38,7 +42,7 @@ def train_estimator():
     test_maps = test_maps.reshape( -1, 2, 20 )
     
     #Create datasets
-    trainSet = dataset.DataSet( X, maps, Y )
+    trainSet = dataset.DataSet( X, maps, Y)
     testSet = dataset.DataSet( test_x, test_maps, test_y )
     
     print('Dataset created')
@@ -55,43 +59,43 @@ def train_estimator():
     # Maps are added as a secondary input that is added to the first layer
     # Siamese architecture: feature extraction to characterize the teams on the 4 first layers, followed by classification
     def conv_net_siamese(x, maps, weights, biases, dropout):
-    #    with tf.device('/gpu:0'):
-        teams = tf.reshape(x, [-1, weights['heroes_w'].get_shape().as_list()[0]])
-        teams = tf.matmul(teams, tf.abs(weights['heroes_w']))
-        maps = tf.reshape(maps, [-1, weights['maps_w'].get_shape().as_list()[0]])
-        teams = tf.multiply(teams, tf.matmul(maps, tf.abs(weights['maps_w'])))
-        fc1 = tf.add( teams, biases['b1'] )
-        fc1 = tf.nn.relu(fc1)
-        fc1 = tf.nn.dropout(fc1, dropout)
+        with tf.device('/gpu:0'):
+            teams = tf.reshape(x, [-1, weights['heroes_w'].get_shape().as_list()[0]])
+            teams = tf.matmul(teams, tf.abs(weights['heroes_w']))
+            maps = tf.reshape(maps, [-1, weights['maps_w'].get_shape().as_list()[0]])
+            teams = tf.multiply(teams, tf.matmul(maps, tf.abs(weights['maps_w'])))
+            fc1 = tf.add( teams, biases['b1'] )
+            fc1 = tf.nn.relu(fc1)
+            fc1 = tf.nn.dropout(fc1, dropout)
+            
+            fs2 = tf.add(tf.matmul(fc1, weights['heroes_w2']), biases['bw2'])
+            fs2 = tf.nn.relu(fs2)
+            fs2 = tf.nn.dropout(fs2, dropout)
+            
+            fs3 = tf.add(tf.matmul(fs2, weights['heroes_w3']), biases['bw3'])
+            fs3 = tf.nn.relu(fs3)
+            fs3 = tf.nn.dropout(fs3, dropout)
+            
+            fs4 = tf.add(tf.matmul(fs3, weights['heroes_w4']), biases['bw4'])
+            fs4 = tf.nn.relu(fs4)
+            fs4 = tf.nn.dropout(fs4, dropout)
         
-        fs2 = tf.add(tf.matmul(fc1, weights['heroes_w2']), biases['bw2'])
-        fs2 = tf.nn.relu(fs2)
-        fs2 = tf.nn.dropout(fs2, dropout)
+            fc2 = tf.reshape(fs4, [-1, 256])
+            fc2 = tf.add(tf.matmul(fc2, weights['w2']), biases['b2'])
+            fc2 = tf.nn.relu(fc2)
+            fc2 = tf.nn.dropout(fc2, dropout)
         
-        fs3 = tf.add(tf.matmul(fs2, weights['heroes_w3']), biases['bw3'])
-        fs3 = tf.nn.relu(fs3)
-        fs3 = tf.nn.dropout(fs3, dropout)
+            fc3 = fc2
+            fc3 = tf.add(tf.matmul(fc3, weights['w3']), biases['b3'])
+            fc3 = tf.nn.relu(fc3)
+            fc3 = tf.nn.dropout(fc3, dropout)
         
-        fs4 = tf.add(tf.matmul(fs3, weights['heroes_w4']), biases['bw4'])
-        fs4 = tf.nn.relu(fs4)
-        fs4 = tf.nn.dropout(fs4, dropout)
-    
-        fc2 = tf.reshape(fs4, [-1, 256])
-        fc2 = tf.add(tf.matmul(fc2, weights['w2']), biases['b2'])
-        fc2 = tf.nn.relu(fc2)
-        fc2 = tf.nn.dropout(fc2, dropout)
-    
-        fc3 = fc2
-        fc3 = tf.add(tf.matmul(fc3, weights['w3']), biases['b3'])
-        fc3 = tf.nn.relu(fc3)
-        fc3 = tf.nn.dropout(fc3, dropout)
-    
-        fc4 = fc3
-        fc4 = tf.add(tf.matmul(fc4, weights['w4']), biases['b4'])
-        fc4 = tf.nn.relu(fc4)
-        fc4 = tf.nn.dropout(fc4, dropout)
-        
-        out = tf.add(tf.matmul(fc4, weights['out']), biases['out'])
+            fc4 = fc3
+            fc4 = tf.add(tf.matmul(fc4, weights['w4']), biases['b4'])
+            fc4 = tf.nn.relu(fc4)
+            fc4 = tf.nn.dropout(fc4, dropout)
+            
+            out = tf.add(tf.matmul(fc4, weights['out']), biases['out'])
         return out
     
     # Store layers weight & bias
@@ -140,11 +144,12 @@ def train_estimator():
     # Launch the graph
     with tf.Session(graph = tf.get_default_graph()) as sess:
         sess.run(init)
+        #
         print('Session started')
         step = 1
         #If we want to resume training from a particular point
         saver = tf.train.Saver()
-    #    saver.restore(sess,'./estimator_model/siamese_smaller')
+#        saver.restore(sess,os.path.join(dirname, 'estimator_model\\estimator_checkpoint-0'))
     
         # Keep training until reach max iterations
         while step * batch_size < training_iters:
@@ -152,8 +157,8 @@ def train_estimator():
             test_x, test_map, test_y = testSet.next_batch( 10000 )
             # Run optimization op (backprop)
     #        betaa = (step * batch_size) / (training_iters * 1.5)
-    #        with tf.device('/gpu:0'):
-            sess.run(optimizer, feed_dict={x: batch_x, m:batch_map, y: batch_y, keep_prob: dropout })
+            with tf.device('/gpu:0'):
+                sess.run(optimizer, feed_dict={x: batch_x, m:batch_map, y: batch_y, keep_prob: dropout })
             if step % display_step == 0:
                 # Calculate batch loss and accuracy
                 loss, acc = sess.run([cost, accuracy], feed_dict={x: batch_x,
@@ -173,21 +178,32 @@ def train_estimator():
                       "{:.5f}".format(test_acc))
         
             if step % (1000000 / batch_size) == 0:
-                saver.save(sess, os.path.join(dirname, 'estimator_model\\estimator_checkpoint'), global_step=0)
+                saver.save(sess, os.path.join(dirname, 'estimator_graph\\estimator_checkpoint'), global_step=0)
     
             step += 1
         
     
-    #    w = sess.run( tf.abs(weights['heroes_w']))
-    #    w = w[:-20]
-    #    linkage = scipy.cluster.hierarchy.linkage(w, method='ward')
-    #    hero_label = []
-    #    for a in range(0,80):
-    #        hero_label.append(Heroes(a).name)
-    #
-    #    plt.title('RMSD Average linkage hierarchical clustering')
-    #    _ = scipy.cluster.hierarchy.dendrogram(linkage, labels = hero_label, leaf_font_size = 12)
-    #    
+        w = sess.run( tf.abs(weights['heroes_w']))
+        w = w[:-20]
+        link = linkage(w, method='ward')
+        hero_label = []
+        for a in range(0,80):
+            hero_label.append(Heroes(a).name)
+        plt.figure()
+        plt.title('RMSD Average linkage hierarchical clustering')
+        dendrogram(link, labels = hero_label, leaf_font_size = 12)
+
+        
+        wm = sess.run( tf.abs(weights['maps_w']))
+        wm = wm[:-5]
+        link = linkage(wm, method='ward')
+        hero_label = []
+        for a in range(0,15):
+            hero_label.append(Maps(a).name)
+        plt.figure()
+        plt.title('RMSD Average linkage hierarchical clustering')
+        dendrogram(link, labels = hero_label, leaf_font_size = 12)
+        plt.show()
         print("Optimization Finished!")
     
         #Now, save the graph

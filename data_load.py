@@ -57,7 +57,8 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
         reader = csv.reader(csvfile, delimiter=',')
         next(reader)
         idx = 1
-        mmr = 0
+        mmrA = 0
+        mmrB = 0
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
             sess.run(init)
@@ -67,7 +68,10 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
                 stringmmr = row[5]
                 for i in stringmmr.split():
                     try:
-                        mmr += int(i)
+                        if int(row[4]) == 1:
+                            mmrA += int(i)
+                        elif int(row[4]) == 0:
+                            mmrB += int(i)
                     except ValueError:
                         pass
                     
@@ -78,14 +82,13 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
                     game_loser[int(row[2]) - 1] = 1
                 
                 #Testing set
-                if idx % 10 == 0 and idx % 100 == 0 and (not filterByMMR or mmr > averageMMR*10):
+                if idx % 100 == 0 and (not filterByMMR or (mmrA + mmrB) > averageMMR*10) and abs(mmrA - mmrB) < 1000:
                     
                     assert sum(game_winner) == 5, ('not 5 winners')
                     game_winner_arr = np.array( game_winner )
                     assert sum(game_loser) == 5, ('not 5 losers')
                     game_loser_arr = np.array( game_loser )
                     
-#                    if (model.run(np.array(game_winner).reshape(-1,100))[0,0] > 0.5 and model.run(np.array(game_loser).reshape(-1,100))[0,0] > 0.5):
                     test_id.append( idx/10 -1 )
                     
                     game_matchupA = []
@@ -103,10 +106,11 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
     
                     game_winner = [0]*100
                     game_loser = [0]*100
-                    mmr = 0
+                    mmrA = 0
+                    mmrB = 0
                     
                     #Training set
-                elif idx % 10 == 0 and (not filterByMMR or mmr > averageMMR*10):
+                elif idx % 10 == 0 and (not filterByMMR or (mmrA + mmrB) > averageMMR*10) and abs(mmrA - mmrB) < 1000:
                     train_id.append( idx/10 -1 )
                     
                     #games must have 5 winners and 5 losers
@@ -115,22 +119,6 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
                     assert sum(game_loser) == 5, ('not 5 losers')
                     game_loser_arr = np.array( game_loser )
                     
-    #                For each game we double the training set by mirroring the matchup and results
-#                    if (model.run(np.array(game_winner).reshape(-1,100))[0,0] < 0.5 and model.run(np.array(game_loser).reshape(-1,100))[0,0] > 0.5):
-#                        game_matchupA = []
-#                        game_matchupA.append(game_loser_arr)
-#                        game_matchupA.append(game_winner_arr)
-#                        games_result.append([1,0])
-#                        
-#                        game_matchupB = []
-#                        game_matchupB.append(game_winner_arr)
-#                        game_matchupB.append(game_loser_arr)
-#                        games_result.append([0,1])
-#                            
-#                        games_matchup.append( game_matchupA )
-#                        games_matchup.append( game_matchupB )
-                    
-#                    else:
                     game_matchupA = []
                     game_matchupA.append(game_winner_arr)
                     game_matchupA.append(game_loser_arr)
@@ -160,15 +148,15 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
     
                     game_winner = [0]*100
                     game_loser = [0]*100
-                    mmr = 0
-                
+                    mmrA = 0
+                    mmrB = 0
                 
                 #if we screen by mmr, reset the game arrays
                 elif idx % 10 == 0:
                     game_winner = [0]*100
                     game_loser = [0]*100
-                    mmr = 0  
-                    
+                    mmrA = 0  
+                    mmrB = 0  
                 idx += 1
     #            if idx >2000000:
     #                break
@@ -240,12 +228,15 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
                 elif int( row[2] ) == 1019:
                     actual_map[13] = 1
                     actual_map1[13] = 1
+                    
                 elif int( row[2] ) == 1022:
                     actual_map[14] = 1
                     actual_map1[14] = 1
                 #Testing set
                 #Maps are added twice to match the number of teams ( 2 team per game )
-                if idx == test_id[test_idx]:
+                stop = False
+                test_stop = False
+                if idx == test_id[test_idx] and not test_stop:
                     map_copy = []
                     map_copy.append(actual_map)
                     map_copy.append(actual_map1)
@@ -253,8 +244,10 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
                     test_maps.append( map_copy )
                     if test_idx != len(test_id) - 1:
                         test_idx += 1
+                if len(test_games_result) == len(test_maps):
+                    test_stop = True
                 #Training Set
-                if idx == train_id[train_idx]:
+                if idx == train_id[train_idx] and not stop:
                     map_copy = []
                     map_copy.append(actual_map)
                     map_copy.append(actual_map1)
@@ -266,7 +259,7 @@ def get_data_winrate_estimator( dataAugment = False, filterByMMR = False, averag
                     if train_idx != len(train_id) - 1:
                         train_idx += 1
                 if len(games_result) == len(maps):
-                    break
+                    stop = True
             idx += 1
                 
 #    np.save('games_matchup.npy',  np.array(games_matchup))
