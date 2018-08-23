@@ -18,7 +18,7 @@ def freezing_graph(model):
     output_path = ""
     if model == "estimator":
         checkpoint_path = os.path.join(dirname, "estimator_graph\\estimator_checkpoint-0")
-        input_graph_path =  os.path.join(dirname, "estimator_graph\\input_graph.pb")
+        input_graph_path =  os.path.join(dirname, "estimator_graph\\estimator_graph.pb")
         output_path = os.path.join(dirname, "estimator_graph")
         output_frozen_graph_name = os.path.join(dirname, "estimator_graph\\frozen_estimator.pb")
         output_optimized_graph_name = "optimized_estimator.pb"
